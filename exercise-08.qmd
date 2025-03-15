@@ -1,0 +1,90 @@
+---
+title: "exercise-08"
+author: "Yen Do"
+format: html
+editor: visual
+---
+
+## Step 1: Loading data
+
+```{r}
+library(tidyverse)
+library(skimr)
+f <- ("https://raw.githubusercontent.com/difiore/ada-datasets/main/Street_et_al_2017.csv")
+d <- read.csv(f, header = TRUE)
+skim(d)
+```
+
+## Step 2: Plot
+
+```{r}
+ecv <- d$ECV #ECV
+gs <- d$Group_size #social group size
+long <- d$Longevity #Longevity
+jpl <- d$Weaning #juvenile period length
+rl <- d$Repro_lifespan #reproduction lifespan
+par(mfrow = c(2,2))
+plot (data = d, ecv ~ long)
+plot(data = d, ecv ~ gs)
+plot(data = d, ecv ~ jpl)
+plot(data = d, ecv ~ rl)
+```
+## Step 3: 
+```{r}
+d1 <- select(d, ECV = "ECV", Social_group_size = "Group_size")
+d1 <- na.omit(d1)
+beta1 <- cor(d1$ECV, d1$Social_group_size) * (sd(d1$ECV)/sd(d1$Social_group_size))
+beta1
+beta0 <- mean(d1$ECV) - beta1 * mean(d1$Social_group_size)
+beta0
+```
+
+## Step 4:
+```{r}
+m <- lm(data = d1, ECV ~ Social_group_size)
+```
+
+## Step 5:
+```{r}
+catarrhinines <- filter(d, Taxonomic_group == "Catarrhini")
+m_cata <- lm(data = catarrhinines, ECV ~ Group_size)
+
+platyrrhinines <- filter(d, Taxonomic_group == "Platyrrhini")
+m_platy <- lm(data = platyrrhinines, ECV ~ Group_size)
+
+strepsirhines <- filter(d, Taxonomic_group == "Strepsirhini")
+m_strep <- lm(data = strepsirhines, ECV ~ Group_size)
+```
+
+
+## Step 6: Caculate SE for slope coefficient, 95% CI and p value and confirm by lm() function
+```{r}
+SSY <- sum((m$model$ECV - mean(m$model$ECV))^2)
+SSR <- sum((m$fitted.values - mean(m$model$ECV))^2)
+SSE <- sum((m$model$ECV - m$fitted.values)^2)
+DFR <- 1
+DFE <- nrow(d) - DFR - 1
+DFY <- nrow(d) - DFR
+MSR <- SSR/DFR
+MSE <- SSE/DFE
+MSY <- SSY/DFY
+fratio <- MSR/MSE
+p <- 1 - pf(q = fratio, df1 = DFR, df2 = DFE)
+SSX <- sum((m$model$Social_group_size - mean(m$model$Social_group_size))^2)
+SEbeta1 <- sqrt(MSE/SSX)
+SEbeta1
+SEbeta0 <- sqrt((MSE * sum(m$model$Social_group_size^2))/(1000 * SSX))
+SEbeta0
+```
+
+# Step 7:
+```{r}
+
+```
+
+## Step 8:
+
+```{r}
+
+```
+
