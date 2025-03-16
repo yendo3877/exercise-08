@@ -42,6 +42,7 @@ beta0
 ## Step 4:
 ```{r}
 m <- lm(data = d1, ECV ~ Social_group_size)
+m
 ```
 
 ## Step 5:
@@ -54,37 +55,107 @@ m_platy <- lm(data = platyrrhinines, ECV ~ Group_size)
 
 strepsirhines <- filter(d, Taxonomic_group == "Strepsirhini")
 m_strep <- lm(data = strepsirhines, ECV ~ Group_size)
+
+m_cata
+m_platy
+m_strep
 ```
 
 
 ## Step 6: Caculate SE for slope coefficient, 95% CI and p value and confirm by lm() function
 ```{r}
-SSY <- sum((m$model$ECV - mean(m$model$ECV))^2)
-SSR <- sum((m$fitted.values - mean(m$model$ECV))^2)
-SSE <- sum((m$model$ECV - m$fitted.values)^2)
-DFR <- 1
-DFE <- nrow(d) - DFR - 1
-DFY <- nrow(d) - DFR
-MSR <- SSR/DFR
-MSE <- SSE/DFE
-MSY <- SSY/DFY
-fratio <- MSR/MSE
-p <- 1 - pf(q = fratio, df1 = DFR, df2 = DFE)
-SSX <- sum((m$model$Social_group_size - mean(m$model$Social_group_size))^2)
-SEbeta1 <- sqrt(MSE/SSX)
+residuals <- d1$ECV - (beta0 + beta1 * d1$Social_group_size)
+s <- sqrt(sum(residuals^2) / (nrow(d1) - 2))
+
+#  SE for beta1
+SEbeta1 <- s / sqrt(sum((d1$Social_group_size - mean(d1$Social_group_size))^2))
 SEbeta1
-SEbeta0 <- sqrt((MSE * sum(m$model$Social_group_size^2))/(1000 * SSX))
-SEbeta0
+
+
+# 95% CI
+t_value <- qt(0.975, df = nrow(d1)-2)
+CI_lower <- beta1 - t_value * SEbeta1
+CI_upper <- beta1 + t_value * SEbeta1
+
+# p-value
+t_stat <- beta1/SEbeta1
+p_value <- 2*pt(-abs(t_stat), df = nrow(d1) -2)
+
+SEbeta1
+CI_lower
+CI_upper
+p_value
+
+#confirm with lm() function
+m <- lm(formula = ECV ~ Social_group_size, data = d1)
+SEbeta1_lm <- summary(m)$coefficients["Social_group_size", "Std. Error"]
+SEbeta1_lm
+CI_lm <- confint(m, level = 0.95)["Social_group_size", ]
+CI_lm
+p_value_lm <- summary(m)$coefficients["Social_group_size", "Pr(>|t|)"]
+p_value_lm
+broom::tidy(m)
 ```
 
-# Step 7:
+# Step 7: Permutation test
 ```{r}
+library(infer)
+alpha <- 0.05
+confidence_level <- 1 - alpha
+p_lower <- alpha/2
+p_upper <- 1 - (alpha/2)
+degrees_of_freedom <- nrow(d1) - 2
+critical_value <- qt(p_upper, df = degrees_of_freedom)
 
+# original slope
+original.slope <- lm(data = d1, ECV ~ Social_group_size) |>
+    # tidy the model and add the CI based on the t distribution
+broom::tidy(conf.int = TRUE, conf.level = confidence_level) |>
+    # or manually calculate the CI based on the t distribution
+mutate(lower = estimate - std.error * critical_value, upper = estimate + std.error *
+    critical_value) |>
+    filter(term == "weight")
+original.slope  # show model results for slope of weight
+
+permuted.slope <- d1 |>
+    # specify model
+specify(ECV ~ Social_group_size) |>
+    # use a null hypothesis of independence
+hypothesize(null = "independence") |>
+    # generate permutation replicates
+generate(reps = 1000, type = "permute") |>
+    # calculate the slope statistic
+calculate(stat = "slope")
+
+head(permuted.slope)  # slopes from first few permutation replicates
+
+
+
+# caculate p-value
+p.value <- permuted.slope |>
+    # add a column of the absolute value of the slope
+mutate(abs_stat = abs(stat)) |>
+    # calculate a summary statistic as the proportion of cases where the
+    # absolute value of the permuted slope is greater than or equal to the
+    # absolute value of the observed slope
+summarize(estimate = mean(abs_stat >= abs(pull(original.slope, estimate))))
+
+p.value
 ```
 
-## Step 8:
+## Step 8: Bootstrap Confidence Intervals
 
 ```{r}
+boot_slopes <- replicate(1000, {
+  d_boot <- d1 %>% sample_frac(replace = TRUE)
+  coef(lm(ECV ~ Social_group_size, data = d_boot))[2]
+})
+boot_CI_quantile <- quantile(boot_slopes, probs = c(0.025, 0.975))
+boot_SE <- sd(boot_slopes)
+boot_CI_theory <- c(beta1 - 1.96 * boot_SE, beta1 + 1.96 * boot_SE)
 
+# Print results
+boot_CI_quantile
+boot_CI_theory
 ```
 
