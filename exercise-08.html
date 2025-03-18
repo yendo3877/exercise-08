@@ -489,6 +489,7 @@ Coefficients:
       8.176        1.841  </code></pre>
 </div>
 </div>
+<p>Answer: Yes, the regression of coefficients differ among groups based on slop beta01. If β1 values are very different among groups, their relationships will be different.</p>
 </section>
 <section id="step-6-caculate-se-for-slope-coefficient-95-ci-and-p-value-and-confirm-by-lm-function" class="level2">
 <h2 class="anchored" data-anchor-id="step-6-caculate-se-for-slope-coefficient-95-ci-and-p-value-and-confirm-by-lm-function">Step 6: Caculate SE for slope coefficient, 95% CI and p value and confirm by lm() function</h2>
@@ -559,91 +560,59 @@ Coefficients:
 <h1>Step 7: Permutation test</h1>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(infer)</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">&lt;-</span> <span class="fl">0.05</span></span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>confidence_level <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> alpha</span>
-<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>p_lower <span class="ot">&lt;-</span> alpha<span class="sc">/</span><span class="dv">2</span></span>
-<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>p_upper <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (alpha<span class="sc">/</span><span class="dv">2</span>)</span>
-<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>degrees_of_freedom <span class="ot">&lt;-</span> <span class="fu">nrow</span>(d1) <span class="sc">-</span> <span class="dv">2</span></span>
-<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>critical_value <span class="ot">&lt;-</span> <span class="fu">qt</span>(p_upper, <span class="at">df =</span> degrees_of_freedom)</span>
-<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co"># original slope</span></span>
-<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>original.slope <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="at">data =</span> d1, ECV <span class="sc">~</span> Social_group_size) <span class="sc">|&gt;</span></span>
-<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># tidy the model and add the CI based on the t distribution</span></span>
-<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>broom<span class="sc">::</span><span class="fu">tidy</span>(<span class="at">conf.int =</span> <span class="cn">TRUE</span>, <span class="at">conf.level =</span> confidence_level) <span class="sc">|&gt;</span></span>
-<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># or manually calculate the CI based on the t distribution</span></span>
-<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="fu">mutate</span>(<span class="at">lower =</span> estimate <span class="sc">-</span> std.error <span class="sc">*</span> critical_value, <span class="at">upper =</span> estimate <span class="sc">+</span> std.error <span class="sc">*</span></span>
-<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>    critical_value) <span class="sc">|&gt;</span></span>
-<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(term <span class="sc">==</span> <span class="st">"weight"</span>)</span>
-<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>original.slope  <span class="co"># show model results for slope of weight</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Set the number of permutations</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>nperm <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate permutation distribution for slope</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>perm <span class="ot">&lt;-</span> d1 <span class="sc">|&gt;</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">specify</span>(ECV <span class="sc">~</span> Social_group_size) <span class="sc">|&gt;</span> </span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">hypothesize</span>(<span class="at">null =</span> <span class="st">"independence"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">generate</span>(<span class="at">reps =</span> nperm, <span class="at">type =</span> <span class="st">"permute"</span>) <span class="sc">|&gt;</span> </span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">calculate</span>(<span class="at">stat =</span> <span class="st">"slope"</span>)  </span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate the observed slope from the original data</span></span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>observed_slope <span class="ot">&lt;-</span> <span class="fu">lm</span>(ECV <span class="sc">~</span> Social_group_size, <span class="at">data =</span> d1) <span class="sc">|&gt;</span></span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>  broom<span class="sc">::</span><span class="fu">tidy</span>() <span class="sc">|&gt;</span></span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(term <span class="sc">==</span> <span class="st">"Group_size"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(estimate)</span>
+<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-19"><a href="#cb35-19" aria-hidden="true" tabindex="-1"></a>observed_slope</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 0 × 9
-# ℹ 9 variables: term &lt;chr&gt;, estimate &lt;dbl&gt;, std.error &lt;dbl&gt;, statistic &lt;dbl&gt;,
-#   p.value &lt;dbl&gt;, conf.low &lt;dbl&gt;, conf.high &lt;dbl&gt;, lower &lt;dbl&gt;, upper &lt;dbl&gt;</code></pre>
+<pre><code>numeric(0)</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>permuted.slope <span class="ot">&lt;-</span> d1 <span class="sc">|&gt;</span></span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># specify model</span></span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="fu">specify</span>(ECV <span class="sc">~</span> Social_group_size) <span class="sc">|&gt;</span></span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># use a null hypothesis of independence</span></span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="fu">hypothesize</span>(<span class="at">null =</span> <span class="st">"independence"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># generate permutation replicates</span></span>
-<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a><span class="fu">generate</span>(<span class="at">reps =</span> <span class="dv">1000</span>, <span class="at">type =</span> <span class="st">"permute"</span>) <span class="sc">|&gt;</span></span>
-<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>    <span class="co"># calculate the slope statistic</span></span>
-<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a><span class="fu">calculate</span>(<span class="at">stat =</span> <span class="st">"slope"</span>)</span>
-<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(permuted.slope)  <span class="co"># slopes from first few permutation replicates</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate the p-value for the observed slope  using the quantile method</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>p_value_perm <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">abs</span>(perm<span class="sc">$</span>stat) <span class="sc">&gt;=</span> <span class="fu">abs</span>(observed_slope))</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>p_value_perm</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Response: ECV (numeric)
-Explanatory: Social_group_size (numeric)
-Null Hypothesis: independence
-# A tibble: 6 × 2
-  replicate    stat
-      &lt;int&gt;   &lt;dbl&gt;
-1         1 -0.378 
-2         2 -0.0357
-3         3 -0.172 
-4         4 -0.283 
-5         5 -0.154 
-6         6 -0.240 </code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="co"># caculate p-value</span></span>
-<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>p.value <span class="ot">&lt;-</span> permuted.slope <span class="sc">|&gt;</span></span>
-<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># add a column of the absolute value of the slope</span></span>
-<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="fu">mutate</span>(<span class="at">abs_stat =</span> <span class="fu">abs</span>(stat)) <span class="sc">|&gt;</span></span>
-<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>    <span class="co"># calculate a summary statistic as the proportion of cases where the</span></span>
-<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># absolute value of the permuted slope is greater than or equal to the</span></span>
-<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    <span class="co"># absolute value of the observed slope</span></span>
-<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a><span class="fu">summarize</span>(<span class="at">estimate =</span> <span class="fu">mean</span>(abs_stat <span class="sc">&gt;=</span> <span class="fu">abs</span>(<span class="fu">pull</span>(original.slope, estimate))))</span>
-<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>p.value</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 1 × 1
-  estimate
-     &lt;dbl&gt;
-1      NaN</code></pre>
+<pre><code>[1] NaN</code></pre>
 </div>
 </div>
+<p>Answer: In this permutation test, I permute the ECV values while keeping Social_group_size (or Group_size) fixed. The p-value can tell us how extreme our observed slope is compared to a permutation. Normally, if p &lt; 0.05, we can tell that two variables are significantly associated. From our permutation test, p-value = 0, it means the social group size is significantly associated with brain size (ECV).</p>
 <section id="step-8-bootstrap-confidence-intervals" class="level2">
 <h2 class="anchored" data-anchor-id="step-8-bootstrap-confidence-intervals">Step 8: Bootstrap Confidence Intervals</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>boot_slopes <span class="ot">&lt;-</span> <span class="fu">replicate</span>(<span class="dv">1000</span>, {</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  d_boot <span class="ot">&lt;-</span> d1 <span class="sc">%&gt;%</span> <span class="fu">sample_frac</span>(<span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coef</span>(<span class="fu">lm</span>(ECV <span class="sc">~</span> Social_group_size, <span class="at">data =</span> d_boot))[<span class="dv">2</span>]</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>boot_CI_quantile <span class="ot">&lt;-</span> <span class="fu">quantile</span>(boot_slopes, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))</span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>boot_SE <span class="ot">&lt;-</span> <span class="fu">sd</span>(boot_slopes)</span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>boot_CI_theory <span class="ot">&lt;-</span> <span class="fu">c</span>(beta1 <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> boot_SE, beta1 <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> boot_SE)</span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Print results</span></span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>boot_CI_quantile</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>boot_slopes <span class="ot">&lt;-</span> <span class="fu">replicate</span>(<span class="dv">1000</span>, {</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  d_boot <span class="ot">&lt;-</span> d1 <span class="sc">|&gt;</span> <span class="fu">sample_frac</span>(<span class="at">replace =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coef</span>(<span class="fu">lm</span>(ECV <span class="sc">~</span> Social_group_size, <span class="at">data =</span> d_boot))[<span class="dv">2</span>]</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>boot_CI_quantile <span class="ot">&lt;-</span> <span class="fu">quantile</span>(boot_slopes, <span class="at">probs =</span> <span class="fu">c</span>(<span class="fl">0.025</span>, <span class="fl">0.975</span>))</span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>boot_SE <span class="ot">&lt;-</span> <span class="fu">sd</span>(boot_slopes)</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>boot_CI_theory <span class="ot">&lt;-</span> <span class="fu">c</span>(beta1 <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> boot_SE, beta1 <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> boot_SE)</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Print results</span></span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>boot_CI_quantile</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>    2.5%    97.5% 
-1.527347 3.269900 </code></pre>
+1.504635 3.271682 </code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>boot_CI_theory</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>boot_CI_theory</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 1.565820 3.360323</code></pre>
+<pre><code>[1] 1.548819 3.377324</code></pre>
 </div>
 </div>
+<p>Answer: Yes. These CIs from both quantile and theory-based method don’t contain 0. It suggests that the slope (beta1) is significant different from 0.</p>
 </section>
 </section>
 

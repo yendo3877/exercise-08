@@ -29,7 +29,9 @@ plot(data = d, ecv ~ gs)
 plot(data = d, ecv ~ jpl)
 plot(data = d, ecv ~ rl)
 ```
-## Step 3: 
+
+## Step 3:
+
 ```{r}
 d1 <- select(d, ECV = "ECV", Social_group_size = "Group_size")
 d1 <- na.omit(d1)
@@ -40,12 +42,14 @@ beta0
 ```
 
 ## Step 4:
+
 ```{r}
 m <- lm(data = d1, ECV ~ Social_group_size)
 m
 ```
 
 ## Step 5:
+
 ```{r}
 catarrhinines <- filter(d, Taxonomic_group == "Catarrhini")
 m_cata <- lm(data = catarrhinines, ECV ~ Group_size)
@@ -61,8 +65,10 @@ m_platy
 m_strep
 ```
 
+Answer: Yes, the regression of coefficients differ among groups based on slop beta01. If β1 values are very different among groups, their relationships will be different.
 
 ## Step 6: Caculate SE for slope coefficient, 95% CI and p value and confirm by lm() function
+
 ```{r}
 residuals <- d1$ECV - (beta0 + beta1 * d1$Social_group_size)
 s <- sqrt(sum(residuals^2) / (nrow(d1) - 2))
@@ -98,56 +104,42 @@ broom::tidy(m)
 ```
 
 # Step 7: Permutation test
+
 ```{r}
 library(infer)
-alpha <- 0.05
-confidence_level <- 1 - alpha
-p_lower <- alpha/2
-p_upper <- 1 - (alpha/2)
-degrees_of_freedom <- nrow(d1) - 2
-critical_value <- qt(p_upper, df = degrees_of_freedom)
 
-# original slope
-original.slope <- lm(data = d1, ECV ~ Social_group_size) |>
-    # tidy the model and add the CI based on the t distribution
-broom::tidy(conf.int = TRUE, conf.level = confidence_level) |>
-    # or manually calculate the CI based on the t distribution
-mutate(lower = estimate - std.error * critical_value, upper = estimate + std.error *
-    critical_value) |>
-    filter(term == "weight")
-original.slope  # show model results for slope of weight
+# Set the number of permutations
+nperm <- 1000
 
-permuted.slope <- d1 |>
-    # specify model
-specify(ECV ~ Social_group_size) |>
-    # use a null hypothesis of independence
-hypothesize(null = "independence") |>
-    # generate permutation replicates
-generate(reps = 1000, type = "permute") |>
-    # calculate the slope statistic
-calculate(stat = "slope")
+# Generate permutation distribution for slope
+perm <- d1 |>
+  specify(ECV ~ Social_group_size) |> 
+  hypothesize(null = "independence") |> 
+  generate(reps = nperm, type = "permute") |> 
+  calculate(stat = "slope")  
 
-head(permuted.slope)  # slopes from first few permutation replicates
+# Calculate the observed slope from the original data
+observed_slope <- lm(ECV ~ Social_group_size, data = d1) |>
+  broom::tidy() |>
+  filter(term == "Group_size") |>
+  pull(estimate)
 
+observed_slope
 
+# Calculate the p-value for the observed slope  using the quantile method
+p_value_perm <- mean(abs(perm$stat) >= abs(observed_slope))
 
-# caculate p-value
-p.value <- permuted.slope |>
-    # add a column of the absolute value of the slope
-mutate(abs_stat = abs(stat)) |>
-    # calculate a summary statistic as the proportion of cases where the
-    # absolute value of the permuted slope is greater than or equal to the
-    # absolute value of the observed slope
-summarize(estimate = mean(abs_stat >= abs(pull(original.slope, estimate))))
+p_value_perm
 
-p.value
 ```
+
+Answer: In this permutation test, I permute the ECV values while keeping Social_group_size (or Group_size) fixed. The p-value can tell us how extreme our observed slope is compared to a permutation. Normally, if p \< 0.05, we can tell that two variables are significantly associated. From our permutation test, p-value = 0, it means the social group size is significantly associated with brain size (ECV).
 
 ## Step 8: Bootstrap Confidence Intervals
 
 ```{r}
 boot_slopes <- replicate(1000, {
-  d_boot <- d1 %>% sample_frac(replace = TRUE)
+  d_boot <- d1 |> sample_frac(replace = TRUE)
   coef(lm(ECV ~ Social_group_size, data = d_boot))[2]
 })
 boot_CI_quantile <- quantile(boot_slopes, probs = c(0.025, 0.975))
@@ -159,3 +151,4 @@ boot_CI_quantile
 boot_CI_theory
 ```
 
+Answer: Yes. These CIs from both quantile and theory-based method don't contain 0. It suggests that the slope (beta1) is significant different from 0.
